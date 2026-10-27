@@ -77,11 +77,76 @@ module.exports = class PapertrailForms extends Plugin {
     this.addCommand({id:'open-active-form',name:'Fill out active form',callback:()=>this.openActive()});
     this.addCommand({id:'reply-active-note',name:'Reply to current submission or thread',callback:()=>this.actionForActive('reply')});
     this.addCommand({id:'forward-active-note',name:'Forward current submission or thread',callback:()=>this.actionForActive('forward')});
+    this.addCommand({id:'insert-active-form',name:'Insert active form into current note',callback:()=>this.insertActiveForm()});
+    this.addCommand({id:'convert-legacy-form',name:'Convert current JS Engine form to a new note',callback:()=>this.convertLegacyForm()});
+    this.registerMarkdownCodeBlockProcessor('papertrail-form',(source,el)=>this.renderEmbeddedForm(source,el));
     this.registerMarkdownCodeBlockProcessor('papertrail-actions',(source,el,ctx)=>this.renderActions(el,ctx.sourcePath));
   }
   async persist(){await this.saveData(this.data);}
   openForms(){new FormsModal(this).open();}
   openActive(){const form=this.data.forms.find(f=>f.id===this.data.activeFormId)||this.data.forms[0];if(form)new FillModal(this,form).open();else this.openForms();}
+  async renderEmbeddedForm(source,el){
+    const id=source.trim();
+    const form=this.data.forms.find(f=>f.id===id);
+    if(!form){el.createEl('p',{text:'Form not found. Open Papertrail Forms to create or restore it.',cls:'pt-error'});return;}
+    try{await new FillModal(this,form,el).render();}catch(e){el.createEl('p',{text:errorText(e),cls:'pt-error'});}
+  }
+  async insertActiveForm(){
+    const form=this.data.forms.find(f=>f.id===this.data.activeFormId)||this.data.forms[0];
+    if(!form){new Notice('Create a form first.');this.openForms();return;}
+    await this.insertForm(form);
+  }
+  async insertForm(form){
+    try{
+      const file=this.app.workspace.getActiveFile();
+      if(!(file instanceof TFile)||file.extension!=='md')throw Error('Open the Markdown note where you want the form first.');
+      const block='```papertrail-form\n'+form.id+'\n```';
+      await this.app.vault.process(file,content=>{
+        if(content.includes(block))throw Error('That form is already embedded in this note.');
+        return content.trimEnd()+'\n\n'+block+'\n';
+      });
+      new Notice('Form added. Open Reading view to fill it out.');
+    }catch(e){new Notice(errorText(e));}
+  }
+  async convertLegacyForm(){
+    try{
+      const file=this.app.workspace.getActiveFile();
+      if(!(file instanceof TFile)||file.extension!=='md')throw Error('Open the original JS Engine form note first.');
+      const text=await this.app.vault.read(file),doc=splitNote(text);
+      // Match only our known earlier builders. Never replace unrelated JS Engine blocks.
+      const pattern=/^```js-engine[ \t]*\r?\n([\s\S]*?)^```[ \t]*(?:\r?\n|$)/gm;
+      let selected=null,match;
+      while((match=pattern.exec(text))){
+        const code=match[1];
+        if(code.includes('const email = field(')&&code.includes('const subject = field(')&&code.includes('const message = field(')||
+           code.includes('const defaultFields =')&&code.includes('papertrail_form')&&code.includes('inbox_folder_id')){
+          if(selected)throw Error('More than one Papertrail form was found. Convert one form per note.');selected=match;
+        }
+      }
+      if(!selected)throw Error('This note does not contain a recognized Papertrail JS Engine form. Open the form note itself and try again.');
+      const form=newForm(`${file.basename||file.name.replace(/\.md$/i,'')} (converted)`);
+      const legacy=doc.fm.papertrail_form;
+      if(legacy && Array.isArray(legacy.fields))form.fields=copy(legacy.fields);
+      form.folderId=typeof doc.fm.inbox_folder_id==='string'?doc.fm.inbox_folder_id:'';
+      // The first, simple version used a literal Inbox folder instead of an ID.
+      if(!form.folderId){
+        const literal=selected[1].match(/const\s+folder\s*=\s*['"]([^'"\r\n]+)['"]/);
+        if(literal){const folder=this.app.vault.getAbstractFileByPath(normalizePath(literal[1]));if(folder instanceof TFolder)form.folderId=await this.inboxId(folder);}
+      }
+      validateForm(form);
+      const block='```papertrail-form\n'+form.id+'\n```\n';
+      const converted=text.slice(0,selected.index)+block+text.slice(selected.index+selected[0].length);
+      const folder=file.parent?.isRoot()?'':file.parent?.path||'';
+      const parent=folder;
+      const path=await this.freePath(parent,(file.basename||file.name.replace(/\.md$/i,''))+' - Papertrail Forms.md');
+      this.data.forms.push(form);const previous=this.data.activeFormId;this.data.activeFormId=form.id;
+      try{await this.persist();await this.app.vault.create(path,converted);}
+      catch(e){this.data.forms=this.data.forms.filter(f=>f.id!==form.id);this.data.activeFormId=previous;try{await this.persist();}catch(_e){}throw e;}
+      const created=this.app.vault.getAbstractFileByPath(path);
+      if(created instanceof TFile)await this.app.workspace.getLeaf(false).openFile(created);
+      new Notice(form.folderId?'Converted copy created. Open Reading view.':'Converted copy created. Open Forms → Edit to choose an inbox.');
+    }catch(e){new Notice(errorText(e));}
+  }
   async actionForActive(mode){
     try{const file=this.app.workspace.getActiveFile();if(!(file instanceof TFile))throw Error('Open a submission or thread first.');const doc=await this.read(file);if(!doc.fm.papertrail_id)throw Error('This is not a Papertrail submission.');new ActionModal(this,doc.fm.papertrail_id,doc.fm.inbox_folder_id,mode).open();}catch(e){new Notice(errorText(e));}
   }
@@ -117,7 +182,7 @@ module.exports = class PapertrailForms extends Plugin {
     }
     if(hits.length!==1)throw Error(hits.length?'Duplicate conversation notes share an ID.':'The submission or thread could not be found.');return hits[0];
   }
-  async freePath(folder,filename,self){const stem=filename.replace(/\.md$/i,'');for(let n=0;;n++){const path=normalizePath(`${folder}/${stem}${n?` (${n})`:''}.md`);const found=this.app.vault.getAbstractFileByPath(path);if(!found||found===self)return path;}}
+  async freePath(folder,filename,self){const stem=filename.replace(/\.md$/i,'');for(let n=0;;n++){const path=normalizePath(`${folder ? folder+'/' : ''}${stem}${n?` (${n})`:''}.md`);const found=this.app.vault.getAbstractFileByPath(path);if(!found||found===self)return path;}}
   async createUnique(folder,filename,content){for(let n=0;;n++){const stem=filename.replace(/\.md$/i,'');const path=normalizePath(`${folder}/${stem}${n?` (${n})`:''}.md`);if(this.app.vault.getAbstractFileByPath(path))continue;try{return await this.app.vault.create(path,content);}catch(e){if(!this.app.vault.getAbstractFileByPath(path))throw e;}}}
   async createSubmission(form,answers){
     validateForm(copy(form));const folders=await this.inboxes();const folder=folders.get(form.folderId);if(!folder)throw Error('Choose an inbox in Edit form before submitting.');
@@ -217,6 +282,7 @@ class FormsModal extends Modal {
       card.createEl('p',{text:`${form.fields.length} field${form.fields.length===1?'':'s'}`,cls:'pt-muted'});
       const actions=card.createDiv({cls:'pt-actions'});
       button(actions,'Fill out',async()=>{this.plugin.data.activeFormId=form.id;await this.plugin.persist();this.close();new FillModal(this.plugin,form).open();},'mod-cta');
+      button(actions,'Embed in current note',async()=>{this.close();await this.plugin.insertForm(form);});
       button(actions,'Edit',()=>{this.close();new FormEditorModal(this.plugin,form).open();});
       button(actions,'Duplicate',async()=>{try{const next=copy(form);next.id=uuid();next.name=`${form.name} copy`;this.plugin.data.forms.push(next);await this.plugin.persist();this.render();}catch(e){new Notice(errorText(e));}});
       button(actions,'Delete',()=>new ConfirmModal(this.app,`Delete the form “${form.name}”? Existing submissions and threads will stay in the vault.`,async()=>{
@@ -295,10 +361,10 @@ class FormEditorModal extends Modal {
   onClose(){this.contentEl.empty();}
 }
 class FillModal extends Modal {
-  constructor(plugin,form){super(plugin.app);this.plugin=plugin;this.form=copy(form);}
+  constructor(plugin,form,embeddedRoot=null){super(plugin.app);this.plugin=plugin;this.form=copy(form);this.embeddedRoot=embeddedRoot;}
   onOpen(){this.render().catch(e=>{this.contentEl.createEl('p',{text:errorText(e),cls:'pt-error'});});}
   async render(){
-    const form=validateForm(this.form),root=this.contentEl;root.empty();root.addClass('pt-modal');root.createEl('h2',{text:form.name});
+    const form=validateForm(this.form),root=this.embeddedRoot||this.contentEl;root.empty();root.addClass(this.embeddedRoot?'pt-embedded':'pt-modal');root.createEl('h2',{text:form.name});
     const folders=await this.plugin.inboxes(),folder=folders.get(form.folderId);root.createEl('p',{text:folder?`Submitting to ${folder.path}`:'Choose an inbox in Edit form before submitting.',cls:'pt-muted'});
     const panel=root.createEl('form',{cls:'pt-fill-form'});const getters=new Map();
     for(const f of form.fields){
@@ -316,14 +382,16 @@ class FillModal extends Modal {
       if(f.type==='select'){input.createEl('option',{text:'Choose…',value:''});for(const opt of f.options)input.createEl('option',{text:opt,value:opt});}
       getters.set(f.id,()=>f.type==='number'?(input.value===''?null:Number(input.value)):input.value.trim());
     }
-    const error=panel.createEl('p',{cls:'pt-error',attr:{role:'alert'}});const row=panel.createDiv({cls:'pt-actions'});
-    const submit=row.createEl('button',{text:'Submit',cls:'mod-cta'});submit.type='submit';button(row,'Manage forms',()=>{this.close();new FormsModal(this.plugin).open();});
+    const error=panel.createEl('p',{cls:'pt-error',attr:{role:'alert'}});const status=panel.createEl('p',{cls:'pt-muted',attr:{role:'status'}});const row=panel.createDiv({cls:'pt-actions'});
+    const submit=row.createEl('button',{text:'Submit',cls:'mod-cta'});submit.type='submit';button(row,'Manage forms',()=>{if(!this.embeddedRoot)this.close();new FormsModal(this.plugin).open();});
     let busy=false;panel.addEventListener('submit',async event=>{
       event.preventDefault();if(busy||!panel.reportValidity())return;
       const answers={};for(const f of form.fields){const value=getters.get(f.id)();const empty=value===null||value===''||(Array.isArray(value)&&!value.length)||(f.type==='checkbox'&&!value);
         if(f.required&&empty){error.textContent=`Please fill in “${f.label}”.`;return;}if(typeof value==='number'&&!Number.isFinite(value)){error.textContent=`Enter a valid number for “${f.label}”.`;return;}answers[f.id]=value;}
-      busy=true;submit.disabled=true;error.textContent='';
-      try{const file=await this.plugin.createSubmission(form,answers);this.close();new Notice(`Saved to ${file.parent.path}.`);await this.app.workspace.getLeaf(false).openFile(file);}
+      busy=true;submit.disabled=true;error.textContent='';status.textContent='';
+      try{const file=await this.plugin.createSubmission(form,answers);new Notice(`Saved to ${file.parent.path}.`);
+        if(this.embeddedRoot){panel.reset();status.textContent=`Saved: ${file.path}`;}
+        else{this.close();await this.app.workspace.getLeaf(false).openFile(file);}}
       catch(e){showError(error,e);}finally{busy=false;submit.disabled=false;}
     });
   }

@@ -1,0 +1,45 @@
+{
+  "forms": [
+    {
+      "id": "09a7bed5-ff3c-464d-97a3-6200c18dafa8",
+      "name": "Contact form",
+      "folderId": "94cb1655-d87d-4ad7-890f-e94cc4654862",
+      "fields": [
+        {
+          "id": "8f2b3715-9cda-42f3-9120-d04e251849b2",
+          "label": "Email",
+          "type": "email",
+          "placeholder": "you@example.com",
+          "required": true,
+          "storage": "frontmatter",
+          "role": "sender",
+          "options": [],
+          "key": "email"
+        },
+        {
+          "id": "31100907-9097-456b-8879-4e5c5377e965",
+          "label": "Subject",
+          "type": "text",
+          "placeholder": "What is this about?",
+          "required": true,
+          "storage": "frontmatter",
+          "role": "subject",
+          "options": [],
+          "key": "subject"
+        },
+        {
+          "id": "032e89ff-9b5a-43bf-8746-e49252b262d9",
+          "label": "Message",
+          "type": "textarea",
+          "placeholder": "Write your message…",
+          "required": true,
+          "storage": "body",
+          "role": "none",
+          "options": [],
+          "key": "message"
+        }
+      ]
+    }
+  ],
+  "activeFormId": "09a7bed5-ff3c-464d-97a3-6200c18dafa8"
+}
