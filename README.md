@@ -1,5 +1,7 @@
 # Papertrail Forms
 
+<img src="https://raw.githubusercontent.com/monapdx/Papertrail-Forms/refs/heads/main/banner.png">
+
 Create forms inside Obsidian and use them to build a fictional inbox and correspondence workflow. Everything stays in your vault. The plugin does not send real email. 
 
 This plugin was developed as a tool to help authors using my **fiction writing** system called *[The Papertrail Method](https://github.com/monapdx/The-Papertrail-Method)*.
