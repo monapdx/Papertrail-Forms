@@ -1,0 +1,9 @@
+{
+  "id": "papertrail-forms",
+  "name": "Papertrail Forms",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Create customizable forms and manage fictional correspondence as submissions and shared threads.",
+  "author": "Ashly Lorenzana",
+  "isDesktopOnly": false
+}

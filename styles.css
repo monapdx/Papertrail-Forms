@@ -1,0 +1,28 @@
+.pt-modal { max-width: 720px; }
+.pt-modal h2 { margin-bottom: 0.3em; }
+.pt-muted { color: var(--text-muted); font-size: var(--font-small); }
+.pt-error { color: var(--text-error); white-space: pre-wrap; }
+.pt-error:empty { display: none; }
+.pt-label { display: grid; gap: 6px; margin: 14px 0; }
+.pt-label > span { font-weight: var(--font-medium); }
+.pt-label > input, .pt-label > textarea, .pt-label > select { width: 100%; box-sizing: border-box; }
+.pt-label > textarea { resize: vertical; }
+.pt-form-list { display: grid; gap: 12px; margin: 16px 0; }
+.pt-form-card, .pt-field-card, .pt-empty { border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-secondary); padding: 14px; }
+.pt-card-heading { display: flex; gap: 10px; align-items: center; }
+.pt-badge { padding: 2px 7px; border-radius: 999px; font-size: var(--font-smaller); background: var(--interactive-accent); color: var(--text-on-accent); }
+.pt-form-card > p { margin: 6px 0 12px; }
+.pt-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pt-create { margin-top: 8px; }
+.pt-create-inbox { display: flex; align-items: end; gap: 10px; margin-bottom: 14px; }
+.pt-create-inbox .pt-label { flex: 1; margin-bottom: 0; }
+.pt-fields { display: grid; gap: 10px; margin: 18px 0; }
+.pt-field-card summary { font-weight: var(--font-medium); cursor: pointer; }
+.pt-field-settings { padding-top: 6px; }
+.pt-check-line { display: flex; gap: 8px; align-items: center; margin: 10px 0; }
+.pt-check-line input { margin: 0; }
+.pt-fill-form { display: grid; gap: 2px; }
+.pt-fill-form .pt-label { margin: 7px 0; }
+.pt-checkboxes { border: 1px solid var(--background-modifier-border); border-radius: 6px; margin: 8px 0; padding: 10px; }
+.pt-bottom { margin-top: 14px; }
+@media (max-width: 480px) { .pt-create-inbox { display: grid; } }
