@@ -1,6 +1,8 @@
 # Papertrail Forms
 
-Create forms inside Obsidian and use them to build a fictional inbox and correspondence workflow. Everything stays in your vault. The plugin does not send real email.
+Create forms inside Obsidian and use them to build a fictional inbox and correspondence workflow. Everything stays in your vault. The plugin does not send real email. 
+
+This plugin was developed as a tool to help authors using my **fiction writing** system called *[The Papertrail Method](https://github.com/monapdx/The-Papertrail-Method)*.
 
 ## Install
 
@@ -11,8 +13,6 @@ Create forms inside Obsidian and use them to build a fictional inbox and corresp
 3. Restart Obsidian or reload the app.
 4. Open **Settings → Community plugins**, turn off Restricted mode if necessary, and enable **Papertrail Forms**.
 5. Click the mail icon on the ribbon, or run **Papertrail Forms: Open forms** from the command palette.
-
-JS Engine and Meta Bind are not required. This is a manually installed plugin; it is not published in Obsidian's community directory.
 
 ## Create a form
 
@@ -36,10 +36,6 @@ Each chosen inbox contains a small `_Inbox Settings.md` note. Keep it in that fo
 - You can also use the command palette commands **Reply to current submission or thread** and **Forward current submission or thread**.
 
 Leave the small `papertrail-actions` code block and the `papertrail-actions` HTML comment in generated notes; they locate and display the buttons. Notes remain readable Markdown if the plugin is disabled, though the interactive controls will not run.
-
-## Previous JS Engine prototype
-
-This plugin is a separate implementation. Forms created in the earlier Markdown-based builder are not imported automatically; recreate the form in the plugin. Previous submission notes are not modified automatically. Their old `js-engine` buttons still require JS Engine; the plugin commands can work on compatible earlier submissions with Papertrail metadata. For new standalone notes, submit them using a plugin form.
 
 ## Data and testing
 
